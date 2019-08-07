@@ -2,12 +2,13 @@ import torch
 import torch.nn as nn
 from torchdiffeq import odeint, odeint_adjoint
 import numpy
+import sys
 
 MAX_NUM_STEPS = 1000  # Maximum number of steps for ODE solver
 
 
 class ODEFuncH(nn.Module):
-    """MLP modeling the derivative of ODE system lv2.
+    """ the derivative of Hamiltonian with classical dynamic.
 
     Parameters
     ----------
@@ -90,7 +91,7 @@ class ODEFuncH(nn.Module):
 
 
 class ODEFuncH2(nn.Module):
-    """MLP modeling the derivative of ODE system lv2.
+    """the derivative of Hamiltonian with quadratic Potential.
 
     Parameters
     ----------
@@ -184,7 +185,7 @@ class ODEFuncH2(nn.Module):
 
 
 class ODEFuncH3(nn.Module):
-    """MLP modeling the derivative of ODE system lv2.
+    """the derivative of Hamiltonian with general linear Potential.
 
     Parameters
     ----------
@@ -207,7 +208,7 @@ class ODEFuncH3(nn.Module):
         One of 'relu' and 'softplus'
     """
     def __init__(self, device, data_dim, hidden_dim, augment_dim=0,
-                 time_dependent=False, non_linearity='tanh'):
+                 time_dependent=False, non_linearity='relu'):
         super(ODEFuncH3, self).__init__()
         self.device = device
         self.augment_dim = augment_dim
@@ -267,7 +268,7 @@ class ODEFuncH3(nn.Module):
 
 
 class ODEFuncH4(nn.Module):
-    """MLP modeling the derivative of ODE system lv2.
+    """the derivative of Hamiltonian with quadratic Potential(2nd form)
 
     Parameters
     ----------
@@ -359,7 +360,7 @@ class ODEFuncH4(nn.Module):
 
 
 class HODEFunc_inspired(nn.Module):
-    """MLP modeling the derivative of ODE system.
+    """the derivative of Hamiltonian Inspired ODE
 
     Parameters
     ----------
@@ -438,7 +439,7 @@ class HODEFunc_inspired(nn.Module):
 
 
 class HODEFunc_inspired2(nn.Module):
-    """MLP modeling the derivative of ODE system.
+    """the derivative of Hamiltonian Inspired ODE with level 2 ODE function
 
     Parameters
     ----------
@@ -539,17 +540,23 @@ class HODEBlock(nn.Module):
     tol : float
         Error tolerance.
 
+    level : int
+        the level of ODE function
+
     adjoint : bool
         If True calculates gradient with adjoint method, otherwise
         backpropagates directly through operations of ODE solver.
+
+    method : function
+        integration method
     """
-    def __init__(self, device, odefunc, is_conv=False, tol=1e-3, adjoint=False, eval_time=1, level=2, method='dopri5'):
+    def __init__(self, device, odefunc, is_conv=False, tol=1e-3, adjoint=False, final_time=1, level=7, method='leapfrog'):
         super(HODEBlock, self).__init__()
         self.adjoint = adjoint
         self.device = device
         self.is_conv = is_conv
         self.odefunc = odefunc
-        self.eval_time = eval_time
+        self.final_time = final_time
         self.tol = tol
         self.level= level
         self.method=method
@@ -571,7 +578,7 @@ ODEBlock
         self.odefunc.nfe = 0
 
         if eval_times is None:
-            integration_time = torch.tensor([0, self.eval_time]).float().type_as(x)
+            integration_time = torch.tensor([0, self.final_time]).float().type_as(x)
         else:
             integration_time = eval_times.type_as(x)
 
@@ -627,12 +634,12 @@ ODEBlock
         timesteps : int
             Number of timesteps in trajectory.
         """
-        integration_time = torch.linspace(0., float(self.eval_time), timesteps)
+        integration_time = torch.linspace(0., float(self.final_time), timesteps)
         return self.forward(x, eval_times=integration_time)
 
 
 class HODENet(nn.Module):
-    """An ODEBlock followed by a Linear layer.
+    """An HODEBlock followed by a Linear layer.
 
     Parameters
     ----------
@@ -656,18 +663,27 @@ class HODENet(nn.Module):
         If True adds time as input, making ODE time dependent.
 
     non_linearity : string
-        One of 'relu' and 'softplus'
+        One of 'relu' and 'softplus' 'tanh'
 
     tol : float
         Error tolerance.
 
+    level : int
+        the level of ODE function
+
+    final_time : float
+        the final time for the ODE Solver
+
     adjoint : bool
         If True calculates gradient with adjoint method, otherwise
         backpropagates directly through operations of ODE solver.
+
+    method : function
+        integration method
     """
     def __init__(self, device, data_dim, hidden_dim, output_dim=1,
                  augment_dim=0, time_dependent=False, non_linearity='relu',
-                 tol=1e-3, adjoint=False, level=7, eval_time=1,method='dopri5'):
+                 tol=1e-3, adjoint=False, level=7, final_time=1., method='leapfrog'):
         super(HODENet, self).__init__()
         self.device = device
         self.data_dim = data_dim
@@ -675,7 +691,7 @@ class HODENet(nn.Module):
         self.augment_dim = augment_dim
         self.output_dim = output_dim
         self.time_dependent = time_dependent
-        self.eval_time = eval_time
+        self.final_time = final_time
         self.tol = tol
         if level == 5:
             odefunc = ODEFuncH(device, data_dim, hidden_dim, augment_dim, time_dependent, non_linearity)
@@ -689,8 +705,10 @@ class HODENet(nn.Module):
             odefunc = HODEFunc_inspired(device, data_dim, hidden_dim, augment_dim, time_dependent, non_linearity)
         elif level == 4:
             odefunc = HODEFunc_inspired2(device, data_dim, hidden_dim, augment_dim, time_dependent, non_linearity)
+        else:
+            sys.stderr.write('need level between 3 to 8 but get %d' % level)
 
-        self.odeblock = HODEBlock(device, odefunc, tol=tol, adjoint=adjoint, eval_time=eval_time,level=level,method=method)
+        self.odeblock = HODEBlock(device, odefunc, tol=tol, adjoint=adjoint, final_time=final_time,level=level,method=method)
 
         if level > 4:
             self.linear_layer = nn.Linear(self.odeblock.odefunc.input_dim * 2,

@@ -1008,7 +1008,7 @@ def Hamiltonian_computation(model,inputt,targets=None,activation='relu',ponentia
     import numpy
     from torchdiffeq import odeint 
     import matplotlib.pyplot as plt
-    integration_time = torch.linspace(0., model.eval_time, steps)
+    integration_time = torch.linspace(0., model.final_time, steps)
     
     if multi == False:
         inputt=inputt.view(1,inputt.shape[0])

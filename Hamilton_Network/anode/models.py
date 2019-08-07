@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torchdiffeq import odeint, odeint_adjoint
+import sys
 
 MAX_NUM_STEPS = 1000  # Maximum number of steps for ODE solver
 
@@ -149,7 +150,7 @@ class ODEFunc2(nn.Module):
 
 
 class ODEFunc(nn.Module):
-    """MLP modeling the derivative of ODE system.
+    """MLP modeling the derivative of ODE system (lv original).
 
     Parameters
     ----------
@@ -239,17 +240,23 @@ class ODEBlock(nn.Module):
     tol : float
         Error tolerance.
 
+    level : int
+        the level of ODE function
+
     adjoint : bool
         If True calculates gradient with adjoint method, otherwise
         backpropagates directly through operations of ODE solver.
+
+    method : function
+        integration method
     """
-    def __init__(self, device, odefunc, is_conv=False, tol=1e-3, adjoint=False, eval_time=1, level=2, method='dopri5'):
+    def __init__(self, device, odefunc, is_conv=False, tol=1e-3, adjoint=False, final_time=1., level=2, method='dopri5'):
         super(ODEBlock, self).__init__()
         self.adjoint = adjoint
         self.device = device
         self.is_conv = is_conv
         self.odefunc = odefunc
-        self.eval_time = eval_time
+        self.final_time = final_time
         self.tol = tol
         self.level= level
         self.method=method
@@ -271,7 +278,7 @@ ODEBlock
         self.odefunc.nfe = 0
 
         if eval_times is None:
-            integration_time = torch.tensor([0, self.eval_time]).float().type_as(x)
+            integration_time = torch.tensor([0, self.final_time]).float().type_as(x)
         else:
             integration_time = eval_times.type_as(x)
 
@@ -317,7 +324,7 @@ ODEBlock
         timesteps : int
             Number of timesteps in trajectory.
         """
-        integration_time = torch.linspace(0., float(self.eval_time), timesteps)
+        integration_time = torch.linspace(0., float(self.final_time), timesteps)
         return self.forward(x, eval_times=integration_time)
 
 
@@ -346,18 +353,27 @@ class ODENet(nn.Module):
         If True adds time as input, making ODE time dependent.
 
     non_linearity : string
-        One of 'relu' and 'softplus'
+        One of 'relu' and 'softplus' 'tanh'
 
     tol : float
         Error tolerance.
 
+    level : int
+        the level of ODE function
+
+    final_time : float
+        the final time for the ODE Solver
+
     adjoint : bool
         If True calculates gradient with adjoint method, otherwise
         backpropagates directly through operations of ODE solver.
+
+    method : function
+        integration method
     """
     def __init__(self, device, data_dim, hidden_dim, output_dim=1,
                  augment_dim=0, time_dependent=False, non_linearity='relu',
-                 tol=1e-3, adjoint=False, level=0, eval_time=1,method='dopri5'):
+                 tol=1e-3, adjoint=False, level=0, final_time=1.,method='dopri5'):
         super(ODENet, self).__init__()
         self.device = device
         self.data_dim = data_dim
@@ -365,8 +381,11 @@ class ODENet(nn.Module):
         self.augment_dim = augment_dim
         self.output_dim = output_dim
         self.time_dependent = time_dependent
-        self.eval_time = eval_time
+        self.final_time = final_time
         self.tol = tol
+        if level > 2:
+            sys.stderr.write('need level between 0 to 2 but get %d' % level)
+
         if level == 1:
             odefunc = ODEFunc1(device, data_dim, hidden_dim, augment_dim, time_dependent, non_linearity)
         elif level == 2:
@@ -374,7 +393,7 @@ class ODENet(nn.Module):
         else:
             odefunc = ODEFunc(device, data_dim, hidden_dim, augment_dim, time_dependent, non_linearity)
 
-        self.odeblock = ODEBlock(device, odefunc, tol=tol, adjoint=adjoint, eval_time=eval_time,level=level,method=method)
+        self.odeblock = ODEBlock(device, odefunc, tol=tol, adjoint=adjoint, final_time=final_time,level=level,method=method)
 
         self.linear_layer = nn.Linear(self.odeblock.odefunc.input_dim ,
                                           self.output_dim)

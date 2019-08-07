@@ -12,7 +12,8 @@ from hamiltonianNN.training import Trainer
 
 # Instantiate a model
 # For regular data...
-hnode = HODENet(device, data_dim=2, hidden_dim=16, augment_dim=1)
+hnode = HODENet(device, data_dim=2, hidden_dim=10, time_dependent=False,level=7,augment_dim=1,
+               non_linearity='relu',eval_time=1,method='leapfrog')
 
 # Instantiate an optimizer and a trainer
 optimizer = torch.optim.Adam(hnode.parameters(), lr=1e-3)
@@ -46,12 +47,11 @@ The `discrete_Hamiltonian.ipynb` notebook contains a demo and tutorial for repro
 
 `More class.ipynb` notebook contains a demo and tutorial for reproducing the experiments comparing Neural ODEs, Augmented Neural ODEs and Hamiltonian Inspired ODEs on multiple classes 2D functions.
 
-## Data
-
-The MNIST and CIFAR10 datasets can be directly downloaded using `torchvision` (this will happen automatically if you run the code, unless you already have those datasets downloaded). To run experiments on ImageNet, you will need to download the data from the [Tiny ImageNet](https://tiny-imagenet.herokuapp.com/) website.
 
 ## Citing
 
 These codes are based on the codes of Anode, on implementing the package `torchdiffeq` from Neural ODE.
+
 [Node](https://github.com/rtqichen/torchdiffeq).
+
 [Anode](https://github.com/EmilienDupont/augmented-neural-odes).

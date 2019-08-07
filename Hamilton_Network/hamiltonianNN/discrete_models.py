@@ -40,7 +40,7 @@ class HamilBlock(nn.Module):
 
 
 class HamilNet(nn.Module):
-    """An HamilBlock followed by a Linear layer.
+    """An Hamiltonian neural network (discrete ).
 
     Parameters
     ----------
@@ -58,21 +58,21 @@ class HamilNet(nn.Module):
         Dimension of augmentation. If 0 does not augment ODE, otherwise augments
         it with augment_dim dimensions.
 
-    time_dependent : bool
-        If True adds time as input, making ODE time dependent.
+    num_layers : int
+        The total number of hidden layers.
 
-    non_linearity : string
-        One of 'relu' and 'softplus'
+    final_time : float
+        step h= final_time / num_layers
 
-    tol : float
-        Error tolerance.
+    activation : string
+        'relu'
     """
 
-    def __init__(self, device, data_dim,hidden_dim, num_layers, augment_dim=0, output_dim=1,final_time=1,activation='relu',
+    def __init__(self, device, data_dim,hidden_dim, num_layers, augment_dim=0, output_dim=1, final_time=1., activation='relu',
                  is_img=False):
         super(HamilNet, self).__init__()
         hamil_blocks = \
-            [HamilBlock(device,data_dim+augment_dim,hidden_dim,num_layers,final_time,non_linearity=activation) for _ in range(num_layers)]
+            [HamilBlock(device, data_dim+augment_dim, hidden_dim, num_layers, final_time, non_linearity=activation) for _ in range(num_layers)]
         self.hamil_blocks = nn.Sequential(*hamil_blocks)
         self.linear_layer = nn.Linear(data_dim*2+augment_dim*2, output_dim)
         self.num_layers = num_layers
