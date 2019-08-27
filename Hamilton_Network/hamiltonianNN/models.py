@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 from torchdiffeq import odeint, odeint_adjoint
-import numpy
 import sys
 
 MAX_NUM_STEPS = 1000  # Maximum number of steps for ODE solver
@@ -24,14 +23,11 @@ class ODEFuncH(nn.Module):
         Dimension of augmentation. If 0 does not augment ODE, otherwise augments
         it with augment_dim dimensions.
 
-    time_dependent : bool
-        If True adds time as input, making ODE time dependent.
 
     non_linearity : string
         One of 'relu' and 'softplus'
     """
-    def __init__(self, device, data_dim, hidden_dim, augment_dim=0,
-                 time_dependent=False, non_linearity='relu'):
+    def __init__(self, device, data_dim, hidden_dim, augment_dim=0, non_linearity='relu'):
         super(ODEFuncH, self).__init__()
         self.device = device
         self.augment_dim = augment_dim
@@ -39,12 +35,9 @@ class ODEFuncH(nn.Module):
         self.input_dim = data_dim + augment_dim
         self.hidden_dim = hidden_dim
         self.nfe = 0  # Number of function evaluations
-        self.time_dependent = time_dependent
 
-        if time_dependent:
-            self.fc1 = nn.Linear(self.input_dim + 1, self.input_dim)
-        else:
-            self.fc1 = nn.Linear(self.input_dim, self.input_dim)
+
+        self.fc1 = nn.Linear(self.input_dim, self.input_dim)
         self.fc2 = nn.Linear(self.input_dim, self.input_dim, bias=False)
 
         if non_linearity == 'relu':
@@ -70,15 +63,7 @@ class ODEFuncH(nn.Module):
         x = x[:, 0:self.input_dim]
 
         self.nfe += 1
-        if self.time_dependent:
-            # Shape (batch_size, 1)
-            t_vec = torch.ones(x.shape[0], 1).to(self.device) * t
-            # Shape (batch_size, data_dim + 1)
-            t_and_x = torch.cat([t_vec, x], 1)
-            # Shape (batch_size, hidden_dim)
-            out = self.fc1(t_and_x)
-        else:
-            out = self.fc1(x)
+        out = self.fc1(x)
         outz = - self.non_linearity1(out)
         outx = self.fc2(z)
         weight = self.fc2.weight
@@ -107,14 +92,11 @@ class ODEFuncH2(nn.Module):
         Dimension of augmentation. If 0 does not augment ODE, otherwise augments
         it with augment_dim dimensions.
 
-    time_dependent : bool
-        If True adds time as input, making ODE time dependent.
-
     non_linearity : string
         One of 'relu' and 'softplus'
     """
     def __init__(self, device, data_dim, hidden_dim, augment_dim=0,
-                 time_dependent=False, non_linearity='tanh'):
+                  non_linearity='tanh'):
         super(ODEFuncH2, self).__init__()
         self.device = device
         self.augment_dim = augment_dim
@@ -122,12 +104,8 @@ class ODEFuncH2(nn.Module):
         self.input_dim = data_dim + augment_dim
         self.hidden_dim = hidden_dim
         self.nfe = 0  # Number of function evaluations
-        self.time_dependent = time_dependent
 
-        if time_dependent:
-            self.fc1 = nn.Linear(self.input_dim + 1, self.input_dim)
-        else:
-            self.fc1 = nn.Linear(self.input_dim, self.input_dim)
+        self.fc1 = nn.Linear(self.input_dim, self.input_dim)
         self.fc2 = nn.Linear(self.input_dim, self.input_dim, bias=False)
 
         if non_linearity == 'relu':
@@ -153,15 +131,7 @@ class ODEFuncH2(nn.Module):
         x = x[:, 0:self.input_dim]
 
         self.nfe += 1
-        if self.time_dependent:
-            # Shape (batch_size, 1)
-            t_vec = torch.ones(x.shape[0], 1).to(self.device) * t
-            # Shape (batch_size, data_dim + 1)
-            t_and_x = torch.cat([t_vec, x], 1)
-            # Shape (batch_size, hidden_dim)
-            out = self.fc1(t_and_x)
-        else:
-            out = self.fc1(x)
+        out = self.fc1(x)
         weight = self.fc1.weight
         bias = self.fc1.bias
         out=1/2*(torch.mm(x,weight)+bias)+1/2*out
@@ -201,14 +171,12 @@ class ODEFuncH3(nn.Module):
         Dimension of augmentation. If 0 does not augment ODE, otherwise augments
         it with augment_dim dimensions.
 
-    time_dependent : bool
-        If True adds time as input, making ODE time dependent.
 
     non_linearity : string
         One of 'relu' and 'softplus'
     """
     def __init__(self, device, data_dim, hidden_dim, augment_dim=0,
-                 time_dependent=False, non_linearity='relu'):
+                  non_linearity='relu'):
         super(ODEFuncH3, self).__init__()
         self.device = device
         self.augment_dim = augment_dim
@@ -216,12 +184,7 @@ class ODEFuncH3(nn.Module):
         self.input_dim = data_dim + augment_dim
         self.hidden_dim = hidden_dim
         self.nfe = 0  # Number of function evaluations
-        self.time_dependent = time_dependent
-
-        if time_dependent:
-            self.fc1 = nn.Linear(self.input_dim + 1, self.hidden_dim)
-        else:
-            self.fc1 = nn.Linear(self.input_dim, self.hidden_dim)
+        self.fc1 = nn.Linear(self.input_dim, self.hidden_dim)
         self.fc2 = nn.Linear(self.input_dim, self.input_dim, bias=False)
 
         if non_linearity == 'relu':
@@ -247,15 +210,7 @@ class ODEFuncH3(nn.Module):
         x = x[:, 0:self.input_dim]
 
         self.nfe += 1
-        if self.time_dependent:
-            # Shape (batch_size, 1)
-            t_vec = torch.ones(x.shape[0], 1).to(self.device) * t
-            # Shape (batch_size, data_dim + 1)
-            t_and_x = torch.cat([t_vec, x], 1)
-            # Shape (batch_size, hidden_dim)
-            out = self.fc1(t_and_x)
-        else:
-            out = self.fc1(x)
+        ut = self.fc1(x)
         outz = - self.non_linearity1(out)
         weight = self.fc1.weight
         outz = torch.mm(outz, weight)
@@ -284,14 +239,12 @@ class ODEFuncH4(nn.Module):
         Dimension of augmentation. If 0 does not augment ODE, otherwise augments
         it with augment_dim dimensions.
 
-    time_dependent : bool
-        If True adds time as input, making ODE time dependent.
 
     non_linearity : string
         One of 'relu' and 'softplus'
     """
     def __init__(self, device, data_dim, hidden_dim, augment_dim=0,
-                 time_dependent=False, non_linearity='tanh'):
+                 non_linearity='tanh'):
         super(ODEFuncH4, self).__init__()
         self.device = device
         self.augment_dim = augment_dim
@@ -299,12 +252,7 @@ class ODEFuncH4(nn.Module):
         self.input_dim = data_dim + augment_dim
         self.hidden_dim = hidden_dim
         self.nfe = 0  # Number of function evaluations
-        self.time_dependent = time_dependent
-
-        if time_dependent:
-            self.fc1 = nn.Linear(self.input_dim + 1, self.input_dim)
-        else:
-            self.fc1 = nn.Linear(self.input_dim, self.input_dim)
+        self.fc1 = nn.Linear(self.input_dim, self.input_dim)
         self.fc2 = nn.Linear(self.input_dim, self.input_dim, bias=False)
 
         if non_linearity == 'relu':
@@ -330,15 +278,7 @@ class ODEFuncH4(nn.Module):
         x = x[:, 0:self.input_dim]
 
         self.nfe += 1
-        if self.time_dependent:
-            # Shape (batch_size, 1)
-            t_vec = torch.ones(x.shape[0], 1).to(self.device) * t
-            # Shape (batch_size, data_dim + 1)
-            t_and_x = torch.cat([t_vec, x], 1)
-            # Shape (batch_size, hidden_dim)
-            out = self.fc1(t_and_x)
-        else:
-            out = self.fc1(x)
+        out = self.fc1(x)
         weight = self.fc1.weight
         bias = self.fc1.bias
         bias=bias.reshape((x.shape[1],1))
@@ -376,14 +316,13 @@ class HODEFunc_inspired(nn.Module):
         Dimension of augmentation. If 0 does not augment ODE, otherwise augments
         it with augment_dim dimensions.
 
-    time_dependent : bool
-        If True adds time as input, making ODE time dependent.
+
 
     non_linearity : string
         One of 'relu' and 'softplus'
     """
     def __init__(self, device, data_dim, hidden_dim,augment_dim=-1,
-                 time_dependent=False, non_linearity='relu'):
+                  non_linearity='relu'):
         super(HODEFunc_inspired, self).__init__()
         self.device = device
         self.data_dim = data_dim
@@ -391,13 +330,9 @@ class HODEFunc_inspired(nn.Module):
         self.hidden_dim = hidden_dim
         self.augment_dim=augment_dim
         self.nfe = 0  # Number of function evaluations
-        self.time_dependent = time_dependent
         self.bias_aug=nn.Parameter(0*torch.Tensor( 1 , self.hidden_dim))
 
-        if time_dependent:
-            self.fc1 = nn.Linear(self.hidden_dim + 1, self.input_dim)
-        else:
-            self.fc1 = nn.Linear(self.hidden_dim, self.input_dim)
+        self.fc1 = nn.Linear(self.hidden_dim, self.input_dim)
 
         if non_linearity == 'relu':
             self.non_linearity1 = nn.ReLU(inplace=True)
@@ -419,18 +354,8 @@ class HODEFunc_inspired(nn.Module):
 
         z=x[:,self.input_dim:self.input_dim+self.hidden_dim]
         x = x[:, 0:self.input_dim]
-        if self.time_dependent:
-            # Shape (batch_size, 1)
-            t_vec = torch.ones(x.shape[0], 1).to(self.device) * t
-            # Shape (batch_size, data_dim + 1)
-            t_and_x = torch.cat([t_vec, x], 1)
-            t_and_z = torch.cat([t_vec, z], 1)
-            # Shape (batch_size, hidden_dim)
-            outy = self.fc1(t_and_z)
-            outz = torch.mm( t_and_z , - self.fc1   )+ self.fc1.bias
-        else:
-            outy =  self.fc1(z)
-            outz = torch.mm(x, self.fc1.weight) \
+        outy =  self.fc1(z)
+        outz = torch.mm(x, self.fc1.weight) \
                    + self.bias_aug
         outz=-1*self.non_linearity1( outz)
         outy=self.non_linearity1(outy)
@@ -455,14 +380,12 @@ class HODEFunc_inspired2(nn.Module):
         Dimension of augmentation. If 0 does not augment ODE, otherwise augments
         it with augment_dim dimensions.
 
-    time_dependent : bool
-        If True adds time as input, making ODE time dependent.
 
     non_linearity : string
         One of 'relu' and 'softplus'
     """
     def __init__(self, device, data_dim, hidden_dim,augment_dim=-1,
-                 time_dependent=False, non_linearity='relu'):
+                  non_linearity='relu'):
         super(HODEFunc_inspired2, self).__init__()
         self.device = device
         self.data_dim = data_dim
@@ -470,14 +393,10 @@ class HODEFunc_inspired2(nn.Module):
         self.hidden_dim = hidden_dim
         self.augment_dim=augment_dim
         self.nfe = 0  # Number of function evaluations
-        self.time_dependent = time_dependent
         self.bias_aug=nn.Parameter(0*torch.Tensor( 1 , self.hidden_dim))
         self.bias_aug2 = nn.Parameter(0 * torch.Tensor(1, self.hidden_dim))
 
-        if time_dependent:
-            self.fc1 = nn.Linear(self.hidden_dim + 1, self.hidden_dim)
-        else:
-            self.fc1 = nn.Linear(self.hidden_dim, self.hidden_dim)
+        self.fc1 = nn.Linear(self.hidden_dim, self.hidden_dim)
 
         self.fc2 = nn.Linear(self.hidden_dim, self.input_dim)
 
@@ -501,18 +420,8 @@ class HODEFunc_inspired2(nn.Module):
 
         z=x[:,self.input_dim:self.input_dim+self.hidden_dim]
         x = x[:, 0:self.input_dim]
-        if self.time_dependent:
-            # Shape (batch_size, 1)
-            t_vec = torch.ones(x.shape[0], 1).to(self.device) * t
-            # Shape (batch_size, data_dim + 1)
-            t_and_x = torch.cat([t_vec, x], 1)
-            t_and_z = torch.cat([t_vec, z], 1)
-            # Shape (batch_size, hidden_dim)
-            outy = self.fc1(t_and_z)
-            outz = numpy.dot( t_and_z.detach().numpy(), - self.fc1.weight.detach().numpy()  )+ self.fc1.bias.detach().numpy()
-        else:
-            outy =  self.fc1(z)
-            outz = torch.mm(x , self.fc2.weight) \
+        outy =  self.fc1(z)
+        outz = torch.mm(x , self.fc2.weight) \
                    + self.bias_aug
         outy=self.non_linearity1(outy)
         outz=self.non_linearity1(outz)
@@ -638,7 +547,7 @@ ODEBlock
         return self.forward(x, eval_times=integration_time)
 
 
-class HODENet(nn.Module):
+class hamil_ODENet(nn.Module):
     """An HODEBlock followed by a Linear layer.
 
     Parameters
@@ -658,9 +567,6 @@ class HODENet(nn.Module):
     augment_dim: int
         Dimension of augmentation. If 0 does not augment ODE, otherwise augments
         it with augment_dim dimensions.
-
-    time_dependent : bool
-        If True adds time as input, making ODE time dependent.
 
     non_linearity : string
         One of 'relu' and 'softplus' 'tanh'
@@ -682,29 +588,28 @@ class HODENet(nn.Module):
         integration method
     """
     def __init__(self, device, data_dim, hidden_dim, output_dim=1,
-                 augment_dim=0, time_dependent=False, non_linearity='relu',
+                 augment_dim=0, non_linearity='relu',
                  tol=1e-3, adjoint=False, level=7, final_time=1., method='leapfrog'):
-        super(HODENet, self).__init__()
+        super(hamil_ODENet, self).__init__()
         self.device = device
         self.data_dim = data_dim
         self.hidden_dim = hidden_dim
         self.augment_dim = augment_dim
         self.output_dim = output_dim
-        self.time_dependent = time_dependent
         self.final_time = final_time
         self.tol = tol
         if level == 5:
-            odefunc = ODEFuncH(device, data_dim, hidden_dim, augment_dim, time_dependent, non_linearity)
+            odefunc = ODEFuncH(device, data_dim, hidden_dim, augment_dim, non_linearity)
         elif level == 6:
-            odefunc = ODEFuncH2(device, data_dim, hidden_dim, augment_dim, time_dependent, non_linearity)
+            odefunc = ODEFuncH2(device, data_dim, hidden_dim, augment_dim, non_linearity)
         elif level == 7:
-            odefunc = ODEFuncH3(device, data_dim, hidden_dim, augment_dim, time_dependent, non_linearity)
+            odefunc = ODEFuncH3(device, data_dim, hidden_dim, augment_dim, non_linearity)
         elif level == 8:
-            odefunc = ODEFuncH4(device, data_dim, hidden_dim, augment_dim, time_dependent, non_linearity)
+            odefunc = ODEFuncH4(device, data_dim, hidden_dim, augment_dim, non_linearity)
         elif level == 3:
-            odefunc = HODEFunc_inspired(device, data_dim, hidden_dim, augment_dim, time_dependent, non_linearity)
+            odefunc = HODEFunc_inspired(device, data_dim, hidden_dim, augment_dim, non_linearity)
         elif level == 4:
-            odefunc = HODEFunc_inspired2(device, data_dim, hidden_dim, augment_dim, time_dependent, non_linearity)
+            odefunc = HODEFunc_inspired2(device, data_dim, hidden_dim, augment_dim, non_linearity)
         else:
             sys.stderr.write('need level between 3 to 8 but get %d' % level)
 
