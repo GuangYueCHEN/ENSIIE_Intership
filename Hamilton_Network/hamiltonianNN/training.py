@@ -71,6 +71,8 @@ class Trainer():
         epoch_loss = 0.
         epoch_nfes = 0
         epoch_backward_nfes = 0
+        test_input=test_input.to(self.device)
+        test_target=test_target.to(self.device)
         for i, (x_batch, y_batch) in enumerate(data_loader):
             self.optimizer.zero_grad()
 
@@ -85,8 +87,8 @@ class Trainer():
             if not self.is_resnet:
                 iteration_nfes = self._get_and_reset_nfes()
                 epoch_nfes += iteration_nfes
-            R_loss = torch.tensor(0.)
-            A_loss = torch.tensor(0.)
+            R_loss = torch.tensor(0.).to(self.device)
+            A_loss = torch.tensor(0.).to(self.device)
             if R=='L1':
                 for name, param in self.model.named_parameters():
                     if  'bias' not in name:

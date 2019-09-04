@@ -1,5 +1,6 @@
 import torch.nn as nn
 import torch
+import random
 
 
 class HamilBlock(nn.Module):
@@ -11,6 +12,7 @@ class HamilBlock(nn.Module):
         self.device = device
         self.num_layers = num_layers
         self.final_time = final_time
+        self.alpha = nn.Parameter(torch.Tensor([random.random() for i in range(self.input_dim)]))
         if non_linearity=='tanh':
             self.mlp = nn.Sequential(
                 nn.Linear(input_dim, hidden_dim),
@@ -30,6 +32,8 @@ class HamilBlock(nn.Module):
         dz = - self.mlp(y)
         weight =self.mlp[0].weight
         dz = torch.mm(dz, weight)
+        alpha=torch.diag(self.alpha)
+        dz = torch.mm(dz, alpha)
         z = z+(self.final_time/self.num_layers)*dz
         dy = self.vts(z)
         weight = self.vts.weight
