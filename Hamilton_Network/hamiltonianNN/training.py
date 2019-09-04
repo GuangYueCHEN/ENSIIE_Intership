@@ -50,7 +50,7 @@ class Trainer():
         # Only resnets have a number of layers attribute
         self.is_resnet = hasattr(self.model, 'num_layers')
 
-    def train(self, data_loader, test_input ,test_target , num_epochs,Rrate=0.001,R='No'):
+    def train(self, data_loader, test_input ,test_target , num_epochs,Rrate=0.001,Arate=0.001,R='No'):
         """Trains model on data in data_loader for num_epochs.
         Parameters
         ----------
@@ -58,11 +58,11 @@ class Trainer():
         num_epochs : int
         """
         for epoch in range(num_epochs):
-            avg_loss = self._train_epoch(data_loader, test_input ,test_target , Rrate=Rrate,R=R)
+            avg_loss = self._train_epoch(data_loader, test_input ,test_target , Rrate=Rrate, Arate=Arate, R=R)
             if self.verbose:
                 print("Epoch {}: {:.3f}".format(epoch + 1, avg_loss))
 
-    def _train_epoch(self, data_loader, test_input , test_target , Rrate=0.001 , R='No'):
+    def _train_epoch(self, data_loader, test_input , test_target , Rrate=0.001 ,Arate=0.001, R=''):
         """Trains model for an epoch.
         Parameters
         ----------
@@ -86,6 +86,7 @@ class Trainer():
                 iteration_nfes = self._get_and_reset_nfes()
                 epoch_nfes += iteration_nfes
             R_loss = torch.tensor(0.)
+            A_loss = torch.tensor(0.)
             if R=='L1':
                 for name, param in self.model.named_parameters():
                     if  'bias' not in name:
@@ -94,10 +95,18 @@ class Trainer():
                 for name, param in self.model.named_parameters():
                     if  'bias' not in name:
                         R_loss += torch.sum(torch.pow(param, 2))
+            elif R == 'Mix':
+                for name, param in self.model.named_parameters():
+                    if  'bias' not in name:
+                        if 'alpha' not in name:
+                            R_loss += torch.sum(torch.pow(param, 2))
+                        if 'alpha' in name:
+                            A_loss += torch.sum(torch.abs(param))
 
             loss_test= self.loss_func(y_pred_test, test_target)
-
             loss = self.loss_func(y_pred, y_batch) + Rrate *R_loss
+            if R == 'Mix':
+                loss = loss +Arate *A_loss
             loss.backward()
             self.optimizer.step()
             epoch_loss += loss.item()

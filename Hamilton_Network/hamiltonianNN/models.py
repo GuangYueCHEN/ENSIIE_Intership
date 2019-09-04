@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 from torchdiffeq import odeint, odeint_adjoint
 import sys
+import random
+
 
 MAX_NUM_STEPS = 1000  # Maximum number of steps for ODE solver
 
@@ -186,6 +188,7 @@ class ODEFuncH3(nn.Module):
         self.nfe = 0  # Number of function evaluations
         self.fc1 = nn.Linear(self.input_dim, self.hidden_dim)
         self.fc2 = nn.Linear(self.input_dim, self.input_dim, bias=False)
+        self.alpha = nn.Parameter(torch.Tensor([random.random() for i in range(self.input_dim)]))
 
         if non_linearity == 'relu':
             self.non_linearity1 = nn.ReLU(inplace=True)
@@ -210,10 +213,12 @@ class ODEFuncH3(nn.Module):
         x = x[:, 0:self.input_dim]
 
         self.nfe += 1
-        ut = self.fc1(x)
+        out = self.fc1(x)
         outz = - self.non_linearity1(out)
         weight = self.fc1.weight
         outz = torch.mm(outz, weight)
+        alpha=torch.diag(self.alpha)
+        outz = torch.mm(outz, alpha)
         outx = self.fc2(z)
         weight = self.fc2.weight
         outx = torch.mm(outx, weight)

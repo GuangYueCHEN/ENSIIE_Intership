@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from hamiltonianNN.discrete_models import  HamilNet
-from hamiltonianNN.models import HODENet
+from hamiltonianNN.models import hamil_ODENet
 
 def accuracy(test_loader,model):
     correct = 0
@@ -166,7 +166,7 @@ class ConvHamilNet(nn.Module):
 
     def __init__(self, device, img_size, num_filters, hidden_dim, output_dim=1,
                  augment_dim=0, non_linearity='relu',
-                 tol=1e-3, adjoint=False, final_time=1, level=7, method='leapfrog', discret=False, num_layers=20):
+                 tol=1e-3, adjoint=False, final_time=1, level=7, method='leapfrog', discret=False, num_layers=20,pool_size=1):
         super(ConvHamilNet, self).__init__()
         self.device = device
         self.img_size = img_size
@@ -177,10 +177,10 @@ class ConvHamilNet(nn.Module):
         if discret:
             self.discret = discret
             self.num_layers = num_layers
-            self.hamilnet = HamilNet(device, num_filters, hidden_dim, num_layers=num_layers, output_dim=output_dim,
+            self.hamilnet = HamilNet(device, num_filters*pool_size*pool_size, hidden_dim, num_layers=num_layers, output_dim=output_dim,
                                      augment_dim=augment_dim, final_time=final_time, activation=non_linearity)
         else:
-            self.hamilnet = HODENet(device, num_filters, hidden_dim, output_dim=output_dim, level=level,
+            self.hamilnet = hamil_ODENet(device, num_filters*pool_size*pool_size, hidden_dim, output_dim=output_dim, level=level,
                                     augment_dim=augment_dim,adjoint=adjoint,
                                     non_linearity=non_linearity, final_time=final_time, method=method)
             self.odeblock = self.hamilnet.odeblock
@@ -194,7 +194,7 @@ class ConvHamilNet(nn.Module):
             nn.ReLU(inplace=True),
             nn.Conv2d(num_filters, num_filters, 4, 2, 1),
         ]
-        fc_layers = [norm(num_filters), nn.ReLU(inplace=True), nn.AdaptiveAvgPool2d((1, 1)), Flatten()]
+        fc_layers = [norm(num_filters), nn.ReLU(inplace=True), nn.AdaptiveAvgPool2d((pool_size, pool_size)), Flatten()]
         feature_layers = [self.hamilnet]
 
         self.net = nn.Sequential(*downsampling_layers, *fc_layers, *feature_layers).to(device)
