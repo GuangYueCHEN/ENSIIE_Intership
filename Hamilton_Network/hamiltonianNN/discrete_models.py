@@ -12,7 +12,7 @@ class HamilBlock(nn.Module):
         self.device = device
         self.num_layers = num_layers
         self.final_time = final_time
-        self.alpha = nn.Parameter(torch.Tensor([random.random() for i in range(self.input_dim)]))
+        self.alpha = nn.Parameter(torch.Tensor([1 for i in range(self.input_dim)]))
         if non_linearity=='tanh':
             self.mlp = nn.Sequential(
                 nn.Linear(input_dim, hidden_dim),

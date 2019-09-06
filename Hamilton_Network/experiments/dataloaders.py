@@ -261,15 +261,22 @@ def cifar10(batch_size=64, size=32, path_to_data='../../cifar10_data'):
     path_to_data : string
         Path to CIFAR10 data files.
     """
-    all_transforms = transforms.Compose([
-        transforms.Resize(size),
-        transforms.ToTensor()
+    transform_train = transforms.Compose([
+    transforms.RandomCrop(size, padding=4),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
+
+    transform_test = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
 
     train_data = datasets.CIFAR10(path_to_data, train=True, download=True,
-                                  transform=all_transforms)
+                                  transform=transform_train)
     test_data = datasets.CIFAR10(path_to_data, train=False,
-                                 transform=all_transforms)
+                                 transform=transform_test)
 
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=True)

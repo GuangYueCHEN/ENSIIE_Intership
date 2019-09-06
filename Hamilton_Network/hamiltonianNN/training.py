@@ -49,18 +49,47 @@ class Trainer():
 
         # Only resnets have a number of layers attribute
         self.is_resnet = hasattr(self.model, 'num_layers')
+        
+        
+    def valid_accuracy(self, test_loader):
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for data in test_loader:
+                images, labels = data
+                images=images.to(self.device)
+                labels =labels.to(self.device)
+                outputs = self.model(images)
+                _, predicted = torch.max(outputs.data, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
 
-    def train(self, data_loader, test_input ,test_target , num_epochs,Rrate=0.001,Arate=0.001,R='No'):
+        return 100 * correct / total
+    
+    
+    def train(self, data_loader, test_input ,test_target ,
+              num_epochs,Rrate=0.001,Arate=0.001,R='No',valid=False,valid_loader=None):
         """Trains model on data in data_loader for num_epochs.
         Parameters
         ----------
         data_loader : torch.utils.data.DataLoader
         num_epochs : int
         """
+        acc=0
         for epoch in range(num_epochs):
+            if epoch % 51 == 50:
+                for param_group in self.optimizer.param_groups:
+                    param_group['lr']=param_group['lr']/10
             avg_loss = self._train_epoch(data_loader, test_input ,test_target , Rrate=Rrate, Arate=Arate, R=R)
             if self.verbose:
                 print("Epoch {}: {:.3f}".format(epoch + 1, avg_loss))
+            if valid:
+                if self.valid_accuracy(valid_loader) > acc :
+                    torch.save(self.model,'./model/check_point')
+                    acc=self.valid_accuracy(valid_loader)
+         
+        if valid:
+            self.model = torch.load('./model/check_point')
 
     def _train_epoch(self, data_loader, test_input , test_target , Rrate=0.001 ,Arate=0.001, R=''):
         """Trains model for an epoch.
@@ -106,9 +135,9 @@ class Trainer():
                             A_loss += torch.sum(torch.abs(param))
 
             loss_test= self.loss_func(y_pred_test, test_target)
-            loss = self.loss_func(y_pred, y_batch) + Rrate *R_loss
+            loss = self.loss_func(y_pred, y_batch) + Rrate *R_loss/x_batch.shape[0]
             if R == 'Mix':
-                loss = loss +Arate *A_loss
+                loss = loss +Arate *A_loss/x_batch.shape[0]
             loss.backward()
             self.optimizer.step()
             epoch_loss += loss.item()
@@ -188,3 +217,6 @@ class Trainer():
             iteration_nfes = self.model.odefunc.nfe
             self.model.odefunc.nfe = 0
         return iteration_nfes
+    
+    
+    

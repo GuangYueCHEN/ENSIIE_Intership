@@ -168,7 +168,7 @@ class ConvHamilNet(nn.Module):
 
     def __init__(self, device, img_size, num_filters, hidden_dim, output_dim=1,
                  augment_dim=0, non_linearity='relu',
-                 tol=1e-3, adjoint=False, final_time=1, level=7, method='leapfrog', discret=False, num_layers=20,pool_size=1):
+                 tol=1e-3, adjoint=False, final_time=1, level=7, method='leapfrog', discret=False, num_layers=20,pool_size=1,dropout=0):
         super(ConvHamilNet, self).__init__()
         self.device = device
         self.img_size = img_size
@@ -195,8 +195,13 @@ class ConvHamilNet(nn.Module):
             norm(num_filters),
             nn.ReLU(inplace=True),
             nn.Conv2d(num_filters, num_filters, 4, 2, 1),
+
         ]
-        fc_layers = [norm(num_filters), nn.ReLU(inplace=True), nn.AdaptiveAvgPool2d((pool_size, pool_size)), Flatten()]
+        fc_layers = [norm(num_filters), 
+                     nn.ReLU(inplace=True), 
+                     nn.AdaptiveAvgPool2d((pool_size, pool_size)),
+                     nn.Dropout2d(dropout), 
+                     Flatten()]
         feature_layers = [self.hamilnet]
 
         self.net = nn.Sequential(*downsampling_layers, *fc_layers, *feature_layers).to(device)
